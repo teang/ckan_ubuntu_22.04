@@ -200,48 +200,16 @@ sudo chown -R www-data:www-data /etc/ckan
 sudo chmod -R 644 /etc/ckan/default/ckan.ini
 echo " ################################################################################################################################################################################################"
 
-# ติดตั้ง CKAN Extensions
-echo " ################################################################################################################################################################################################"
-echo "ติดตั้ง CKAN Extensions..."
-echo " ################################################################################################################################################################################################"
-
-# ติดตั้งส่วนขยาย
-source /usr/lib/ckan/default/bin/activate
-pip install -e 'git+https://github.com/ckan/ckanext-scheming.git#egg=ckanext-scheming'
-pip install -e 'git+https://github.com/ckan/ckanext-harvest.git#egg=ckanext-harvest'
-pip install -e 'git+https://github.com/ckan/ckanext-archiver.git#egg=ckanext-archiver'
-pip install -e 'git+https://github.com/ckan/ckanext-report.git#egg=ckanext-report'
-pip install -e "git+https://github.com/ckan/ckanext-datarequests.git@$(git ls-remote https://github.com/ckan/ckanext-datarequests.git HEAD | cut -f1)#egg=ckanext-datarequests"
-pip install -e 'git+https://github.com/ckan/ckanext-validation.git#egg=ckanext-validation'
-pip install -e 'git+https://github.com/ckan/ckanext-pages.git#egg=ckanext-pages'
-pip install -e 'git+https://github.com/ckan/ckanext-geoview.git#egg=ckanext-geoview'
-pip install -e 'git+https://github.com/ckan/ckanext-spatial.git#egg=ckanext-spatial'
-pip install -e 'git+https://github.com/ckan/ckanext-reclineview.git#egg=ckanext-reclineview'
-pip install -e 'git+https://github.com/ckan/ckanext-pdfview.git#egg=ckanext-pdfview'
-pip install -e 'git+https://github.com/ckan/ckanext-hierarchy.git#egg=ckanext-hierarchy'
-pip install -e 'git+https://gitlab.nectec.or.th/opend/ckanext-xloader.git#egg=ckanext-xloader'
-pip install -e 'git+https://github.com/ckan/ckanext-image-view.git#egg=ckanext-image-view'
-pip install -e 'git+https://github.com/ckan/ckanext-dcat.git#egg=ckanext-dcat'
-pip install -r /usr/lib/ckan/default/src/ckanext-dcat/requirements.txt
-
-# เปิดใช้งานส่วนขยายในไฟล์ ckan.ini
-echo " ################################################################################################################################################################################################"
-echo "เปิดใช้งาน CKAN Extensions ใน ckan.ini..."
-echo " ################################################################################################################################################################################################"
-sudo sed -i 's|ckan.plugins = .*|ckan.plugins = stats text_view image_view recline_view pdf_view harvest spatial_query geoview pages scheming_datasets datarequests validation dcat dcat_json_interface|' /etc/ckan/default/ckan.ini
+# ติดตั้ง PostGIS
+echo "ติดตั้ง PostGIS..."
+sudo apt-get install -y postgresql-12-postgis-3
+sudo -u postgres psql -d ckan_default -c "CREATE EXTENSION postgis;"
 
 
-# อัปเดตฐานข้อมูลหลังจากติดตั้งส่วนขยาย
-echo " ################################################################################################################################################################################################"
-echo "อัปเดตฐานข้อมูล CKAN Extensions..."
-echo " ################################################################################################################################################################################################"
-ckan -c /etc/ckan/default/ckan.ini db upgrade
-ckan -c /etc/ckan/default/ckan.ini harvester initdb
-ckan -c /etc/ckan/default/ckan.ini archiver initdb
-ckan -c /etc/ckan/default/ckan.ini report initdb
+# ติดตั้ง Redis และ RQ
+echo "ติดตั้ง Redis และ RQ..."
+pip install redis rq
 
-# แสดงข้อความสำเร็จ
-echo "การติดตั้ง CKAN Extensions เสร็จสิ้น!"
 
 # รีสตาร์ทบริการ CKAN
 echo " ################################################################################################################################################################################################"
