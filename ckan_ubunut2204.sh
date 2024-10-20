@@ -46,7 +46,7 @@ echo "อัปเดตระบบและติดตั้งซอฟต�
 echo " ################################################################################################################################################################################################"
 sudo apt update
 sudo apt upgrade -y
-sudo apt install -y python3-dev libpq-dev python3-pip python3-venv git-core redis-server nginx curl lsof postgresql openjdk-11-jdk
+sudo apt install -y python3-dev libpq-dev python3-pip python3-venv git-core redis-server nginx curl lsof postgresql openjdk-11-jdk supervisor
 
 # สร้าง virtual environment สำหรับ CKAN
 echo " ################################################################################################################################################################################################"
@@ -78,14 +78,22 @@ echo " #########################################################################
 sudo -u postgres psql -c "CREATE USER ckan_default WITH PASSWORD 'your_password';"
 sudo -u postgres psql -c "CREATE DATABASE ckan_default OWNER ckan_default ENCODING 'UTF8';"
 
+
+
 # ปรับแต่ง PostgreSQL
 echo " ################################################################################################################################################################################################"
 echo "ปรับแต่ง PostgreSQL..."
 echo " ################################################################################################################################################################################################"
-sudo -u postgres psql -c "ALTER SYSTEM SET shared_buffers = '256MB';"
-sudo -u postgres psql -c "ALTER SYSTEM SET work_mem = '8MB';"
-sudo -u postgres psql -c "ALTER SYSTEM SET maintenance_work_mem = '64MB';"
-sudo -u postgres psql -c "ALTER SYSTEM SET effective_cache_size = '512MB';"
+sudo -u postgres psql -c "ALTER SYSTEM SET shared_buffers = '1GB';"
+sudo -u postgres psql -c "ALTER SYSTEM SET work_mem = '128MB';"
+sudo -u postgres psql -c "ALTER SYSTEM SET maintenance_work_mem = '256MB';"
+sudo -u postgres psql -c "ALTER SYSTEM SET effective_cache_size = '3GB';"
+sudo -u postgres psql -c "ALTER SYSTEM SET max_connections = '200';"
+sudo -u postgres psql -c "ALTER SYSTEM SET wal_buffers = '16MB';"
+sudo -u postgres psql -c "ALTER SYSTEM SET checkpoint_completion_target = '0.9';"
+sudo -u postgres psql -c "ALTER SYSTEM SET random_page_cost = '1.1';"
+sudo -u postgres psql -c "ALTER SYSTEM SET effective_io_concurrency = '200';"
+sudo -u postgres psql -c "ALTER SYSTEM SET autovacuum = 'on';"
 sudo systemctl restart postgresql
 
 # ตั้งค่า CKAN
@@ -200,15 +208,43 @@ sudo chown -R www-data:www-data /etc/ckan
 sudo chmod -R 644 /etc/ckan/default/ckan.ini
 echo " ################################################################################################################################################################################################"
 
-# ติดตั้ง PostGIS
-echo "ติดตั้ง PostGIS..."
-sudo apt-get install -y postgresql-12-postgis-3
+
+# ติดตั้งและตั้งค่า PostGIS บน PostgreSQL
+echo " ################################################################################################################################################################################################"
+echo "ติดตั้งและตั้งค่า PostGIS บน PostgreSQL..."
+echo " ################################################################################################################################################################################################"
+sudo apt install -y postgresql-14-postgis-3 postgresql-14-postgis-3-scripts
 sudo -u postgres psql -d ckan_default -c "CREATE EXTENSION postgis;"
+sudo -u postgres psql -d ckan_default -c "CREATE EXTENSION postgis_topology;"
+sudo -u postgres psql -d ckan_default -c "CREATE EXTENSION postgis_raster;"
+sudo -u postgres psql -d ckan_default -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ckan_default;"
+sudo -u postgres psql -d ckan_default -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ckan_default;"
+
 
 
 # ติดตั้ง Redis และ RQ
 echo "ติดตั้ง Redis และ RQ..."
 pip install redis rq
+
+# ตั้งค่า Supervisor สำหรับ RQ Worker
+sudo tee /etc/supervisor/conf.d/ckan-worker.conf > /dev/null <<EOF
+[program:ckan-worker]
+command=/usr/lib/ckan/default/bin/rq worker
+autostart=true
+autorestart=true
+stderr_logfile=/var/log/ckan-worker.err.log
+stdout_logfile=/var/log/ckan-worker.out.log
+EOF
+
+
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl start ckan-worker
+
+
+# การตั้งค่าสิทธิ์ไฟล์ config
+sudo chown -R www-data:www-data /etc/ckan
+sudo chmod -R 644 /etc/ckan/default/ckan.ini
 
 
 # รีสตาร์ทบริการ CKAN
