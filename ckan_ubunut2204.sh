@@ -78,8 +78,6 @@ echo " #########################################################################
 sudo -u postgres psql -c "CREATE USER ckan_default WITH PASSWORD 'your_password';"
 sudo -u postgres psql -c "CREATE DATABASE ckan_default OWNER ckan_default ENCODING 'UTF8';"
 
-
-
 # ปรับแต่ง PostgreSQL
 echo " ################################################################################################################################################################################################"
 echo "ปรับแต่ง PostgreSQL..."
@@ -110,6 +108,21 @@ echo "แก้ไขไฟล์ ckan.ini..."
 echo " ################################################################################################################################################################################################"
 sudo sed -i 's|sqlalchemy.url = .*|sqlalchemy.url = postgresql://ckan_default:your_password@localhost/ckan_default|' /etc/ckan/default/ckan.ini
 sudo sed -i 's|ckan.site_url = .*|ckan.site_url = http://ckanteang.io|' /etc/ckan/default/ckan.ini
+
+# เพิ่ม Logging Configuration
+echo " ################################################################################################################################################################################################"
+echo "เพิ่มการตั้งค่าการบันทึกใน ckan.ini..."
+echo " ################################################################################################################################################################################################"
+sudo tee -a /etc/ckan/default/ckan.ini > /dev/null <<EOF
+[log]
+log_level = DEBUG
+log_file = /var/log/ckan/ckan.log
+EOF
+
+# สร้างโฟลเดอร์สำหรับบันทึกและตั้งค่าสิทธิ
+sudo mkdir -p /var/log/ckan
+sudo chown -R www-data:www-data /var/log/ckan
+sudo chmod -R 755 /var/log/ckan
 
 # ติดตั้งและตั้งค่า Solr
 echo " ################################################################################################################################################################################################"
@@ -208,7 +221,6 @@ sudo chown -R www-data:www-data /etc/ckan
 sudo chmod -R 644 /etc/ckan/default/ckan.ini
 echo " ################################################################################################################################################################################################"
 
-
 # ติดตั้งและตั้งค่า PostGIS บน PostgreSQL
 echo " ################################################################################################################################################################################################"
 echo "ติดตั้งและตั้งค่า PostGIS บน PostgreSQL..."
@@ -219,8 +231,6 @@ sudo -u postgres psql -d ckan_default -c "CREATE EXTENSION postgis_topology;"
 sudo -u postgres psql -d ckan_default -c "CREATE EXTENSION postgis_raster;"
 sudo -u postgres psql -d ckan_default -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO ckan_default;"
 sudo -u postgres psql -d ckan_default -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ckan_default;"
-
-
 
 # ติดตั้ง Redis และ RQ
 echo "ติดตั้ง Redis และ RQ..."
@@ -236,16 +246,13 @@ stderr_logfile=/var/log/ckan-worker.err.log
 stdout_logfile=/var/log/ckan-worker.out.log
 EOF
 
-
 sudo supervisorctl reread
 sudo supervisorctl update
 sudo supervisorctl start ckan-worker
 
-
 # การตั้งค่าสิทธิ์ไฟล์ config
 sudo chown -R www-data:www-data /etc/ckan
 sudo chmod -R 644 /etc/ckan/default/ckan.ini
-
 
 # รีสตาร์ทบริการ CKAN
 echo " ################################################################################################################################################################################################"
